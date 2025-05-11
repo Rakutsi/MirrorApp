@@ -106,4 +106,6 @@ dependencies {
     implementation("androidx.compose.foundation:foundation:1.2.0")
     implementation("androidx.compose.material3:material3:1.0.0")
     implementation("androidx.compose.ui:ui-tooling-preview:1.2.0")
+    implementation ("com.google.code.gson:gson:2.10.1")
+
 }

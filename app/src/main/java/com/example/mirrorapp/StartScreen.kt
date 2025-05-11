@@ -21,11 +21,50 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import com.google.gson.Gson
+import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
 
 @Composable
 fun StartScreenContent(navController: NavHostController) {
-    var urls by remember { mutableStateOf(listOf(TextFieldValue(""))) }
-    var selectedColors by remember { mutableStateOf(listOf(Color.Gray)) }
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("mirror_prefs", Context.MODE_PRIVATE)
+
+    // Hämta tidigare sparade URL:er och färger från SharedPreferences
+    var urls by remember {
+        mutableStateOf(
+            run {
+                val savedJson = prefs.getString("saved_urls", null)
+                if (savedJson != null) {
+                    val type = object : com.google.gson.reflect.TypeToken<Map<String, Int>>() {}.type
+                    val savedMap: Map<String, Int> = Gson().fromJson(savedJson, type)
+                    savedMap.keys.map { TextFieldValue(it) }.ifEmpty { listOf(TextFieldValue("")) }
+                } else {
+                    listOf(TextFieldValue(""))
+                }
+            }
+        )
+    }
+
+    var selectedColors by remember {
+        mutableStateOf(
+            run {
+                val savedJson = prefs.getString("saved_urls", null)
+                if (savedJson != null) {
+                    val type = object : com.google.gson.reflect.TypeToken<Map<String, Int>>() {}.type
+                    val savedMap: Map<String, Int> = Gson().fromJson(savedJson, type)
+                    savedMap.values.map { Color(it) }.ifEmpty { listOf(Color.Gray) }
+                } else {
+                    listOf(Color.Gray)
+                }
+            }
+        )
+    }
 
     val colorOptions = listOf(Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Cyan, Color.Magenta)
     val viewModel: StartViewModel = viewModel()
@@ -39,7 +78,6 @@ fun StartScreenContent(navController: NavHostController) {
         Text("Ange en eller flera ICS-URL:er", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Skapa ett fält per URL
         for (index in urls.indices) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -59,19 +97,18 @@ fun StartScreenContent(navController: NavHostController) {
                             urls = updatedUrls
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.Black)
+                        textStyle = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color.Black
+                        )
+
                     )
                 }
 
-                // Färgvalsknapp
                 IconButton(onClick = {
-                    // Hämta index för nuvarande färg
                     val currentColorIndex = colorOptions.indexOf(selectedColors[index])
-
-                    // Beräkna nästa index (cykling genom listan)
                     val nextColorIndex = (currentColorIndex + 1) % colorOptions.size
-
-                    // Uppdatera färgen till nästa i listan
                     selectedColors = selectedColors.toMutableList().apply {
                         set(index, colorOptions[nextColorIndex])
                     }
@@ -83,8 +120,6 @@ fun StartScreenContent(navController: NavHostController) {
                     )
                 }
 
-
-                // Ta bort fält
                 if (urls.size > 1) {
                     IconButton(onClick = {
                         urls = urls.toMutableList().apply { removeAt(index) }
@@ -98,7 +133,6 @@ fun StartScreenContent(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Lägg till nytt fält
         Button(onClick = {
             urls = urls + TextFieldValue("")
             selectedColors = selectedColors + Color.Gray
@@ -118,26 +152,36 @@ fun StartScreenContent(navController: NavHostController) {
                     val nonEmptyUrls = nonEmptyPairs.map { it.second }
                     val nonEmptyColors = nonEmptyPairs.map { (i, _) -> selectedColors.getOrElse(i) { Color.Gray } }
 
-                    // Bygg en Map istället för två separata listor
-                    val urlColorMap = nonEmptyUrls.zip(nonEmptyColors).toMap()
+                    // Rensa SharedPreferences
+                    val editor = prefs.edit()
+                    editor.clear()
 
-                    // Kodning av URL:er
+                    // Spara nya värden
+                    val urlColorMapAsInts = nonEmptyUrls.zip(nonEmptyColors).associate { (url, color) ->
+                        url to color.toArgb()
+                    }
+                    val urlJson = Gson().toJson(urlColorMapAsInts)
+                    editor.putString("saved_urls", urlJson)
+                    editor.apply()
+
+                    // Anropa ViewModel
+                    val urlColorMap = nonEmptyUrls.zip(nonEmptyColors).associate { (url, color) -> url to color }
+                    viewModel.fetchEvents(urlColorMap)
+
+                    // Navigera
                     val encodedUrls = nonEmptyUrls.map {
                         URLEncoder.encode(it, StandardCharsets.UTF_8.toString())
                     }
                     val encodedColors = nonEmptyColors.joinToString(",") { it.toArgb().toString() }
 
-                    viewModel.fetchEvents(urlColorMap) // Skicka Map istället för List
-
-                    // Skicka URL och färger som parametrar i navController
                     navController.navigate("home_screen/${encodedUrls.joinToString(",")}/${encodedColors}")
                 }
             }
         ) {
             Text("Fortsätt")
         }
-
     }
 }
+
 
 
