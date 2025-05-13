@@ -77,7 +77,7 @@ fun CalendarGrid(viewModel: StartViewModel) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(if (isToday) Color.Red else Color.Transparent), // Gör bara raden röd om det är idag
+                                    .background(if (isToday) Color.Black else Color.Transparent), // Gör bara raden röd om det är idag
                                 horizontalArrangement = Arrangement.Start, // Datum och månad till vänster
                                 verticalAlignment = Alignment.CenterVertically // Centrerar vertikalt på raden
                             ) {
@@ -116,7 +116,7 @@ fun CalendarGrid(viewModel: StartViewModel) {
                                             fontWeight = FontWeight.Bold,
                                             color = Color.White,
                                             modifier = Modifier
-                                                .background(Color.Red, RoundedCornerShape(4.dp)) // Bakgrund täcker hela bredden
+                                                .background(Color.Black, RoundedCornerShape(4.dp)) // Bakgrund täcker hela bredden
                                                 .padding(horizontal = 6.dp, vertical = 2.dp) // Padding för att justera utrymme runt texten
                                                 .align(Alignment.Center) // Här använder vi align korrekt på Boxen
                                         )

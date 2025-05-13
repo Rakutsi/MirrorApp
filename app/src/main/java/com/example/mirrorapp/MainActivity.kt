@@ -18,11 +18,16 @@ import androidx.navigation.compose.rememberNavController
 import com.example.mirrorapp.ui.theme.MirrorAppTheme
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
+import androidx.work.*
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // Håll skärmen påslagen medan appen körs
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Säkerställ att window och insetsController inte är null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

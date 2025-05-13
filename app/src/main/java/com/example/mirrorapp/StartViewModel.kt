@@ -16,11 +16,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Timer
 import kotlin.concurrent.schedule
+import java.time.LocalDateTime
 
 data class CalendarDay(
     val date: LocalDate,
     val events: List<CalendarEvent>
+
 )
+
 
 
 class StartViewModel : ViewModel() {
@@ -34,20 +37,31 @@ class StartViewModel : ViewModel() {
     private val _weeklyGrid = MutableStateFlow<List<List<CalendarDay>>>(emptyList())
     val weeklyGrid: StateFlow<List<List<CalendarDay>>> = _weeklyGrid
 
+    private var timer: Timer? = null
+    private var lastUrlColorMap: Map<String, Color>? = null
+
     fun fetchEvents(urlColorMap: Map<String, Color>) {
         viewModelScope.launch {
             _isLoading.value = true
             Log.d("StartViewModel", "Fetching events started")
 
             try {
-                val calendarRepository = CalendarRepository() // Skapa en instans av CalendarRepository
-                val allEvents = calendarRepository.fetchEventsFromIcsUrls(urlColorMap) // Använd metoden från CalendarRepository
-
+                val calendarRepository = CalendarRepository()
+                val allEvents = calendarRepository.fetchEventsFromIcsUrls(urlColorMap)
                 val sortedEvents = allEvents.sortedBy { LocalDate.parse(it.date) }
+
                 _events.value = sortedEvents
                 Log.d("StartViewModel", "Events sorted and updated")
 
                 generateWeeklyGrid(sortedEvents)
+
+                // Spara senaste kartan
+                lastUrlColorMap = urlColorMap
+
+                // Starta timern bara en gång
+                if (timer == null) {
+                    startTimer()
+                }
 
             } catch (e: Exception) {
                 Log.e("StartViewModel", "Error fetching events", e)
@@ -56,6 +70,27 @@ class StartViewModel : ViewModel() {
                 _isLoading.value = false
             }
         }
+    }
+
+    private fun startTimer(intervalMillis: Long = 60_000L) {
+        timer = Timer()
+        timer?.schedule(delay = intervalMillis, period = intervalMillis) {
+            Log.d("StartViewModel", "Timer triggered, fetching again")
+            val now = LocalDateTime.now()
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+            Log.d("TimeCheck", "App thinks current date/time is: ${now.format(formatter)}")
+            lastUrlColorMap?.let { map ->
+                viewModelScope.launch {
+                    fetchEvents(map)
+                }
+            } ?: Log.w("StartViewModel", "No urlColorMap saved; skipping fetch.")
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        timer?.cancel()
+        timer = null
     }
 
 

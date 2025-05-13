@@ -80,6 +80,7 @@ dependencies {
     implementation("org.mnode.ical4j:ical4j:3.0.24")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("net.sf.biweekly:biweekly:0.6.8")
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Testning
     testImplementation(libs.junit)
