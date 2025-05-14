@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
-import com.example.mirrorapp.ui.CalendarGrid
+import com.example.mirrorapp.CalendarGrid
 import java.net.URLDecoder
 import androidx.compose.ui.platform.LocalContext
 
@@ -18,8 +18,10 @@ import androidx.compose.ui.platform.LocalContext
 fun HomeScreen(
     navBackStackEntry: NavBackStackEntry,
     allUrls: String,
-    allColors: String
-) {
+    allColors: String,
+    isDarkMode: Boolean
+)
+ {
     // Få kontext och ViewModel inom composable
     val context = LocalContext.current
     val viewModel: StartViewModel = viewModel()
@@ -72,7 +74,8 @@ fun HomeScreen(
                 Text("Inga händelser hittades.", style = MaterialTheme.typography.bodyMedium)
             } else {
                 Log.d("HomeScreen", "Rendering calendar grid with ${events.size} events")
-                CalendarGrid(viewModel = viewModel)
+                CalendarGrid(viewModel = viewModel, isDarkMode = isDarkMode, showHeader = true)
+
             }
         }
     }

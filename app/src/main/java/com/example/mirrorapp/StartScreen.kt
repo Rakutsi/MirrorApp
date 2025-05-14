@@ -28,14 +28,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Button
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.example.mirrorapp.CalendarGrid
 
 
 @Composable
-fun StartScreenContent(navController: NavHostController) {
+fun StartScreenContent(
+    navController: NavHostController,
+    isDarkMode: Boolean,
+    toggleTheme: () -> Unit
+) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("mirror_prefs", Context.MODE_PRIVATE)
 
-    // Hämta tidigare sparade URL:er och färger från SharedPreferences
     var urls by remember {
         mutableStateOf(
             run {
@@ -100,9 +104,8 @@ fun StartScreenContent(navController: NavHostController) {
                         textStyle = TextStyle(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Normal,
-                            color = Color.Black
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-
                     )
                 }
 
@@ -140,6 +143,16 @@ fun StartScreenContent(navController: NavHostController) {
             Text("Lägg till fält")
         }
 
+        Spacer(modifier = Modifier.height(10.dp))
+
+
+        // 🔁 Tema-knapp här
+        Button(onClick = toggleTheme) {
+            Text(if (isDarkMode) "Byt till ljust läge" else "Byt till mörkt läge")
+        }
+
+        CalendarGrid(viewModel = viewModel, isDarkMode = isDarkMode, showHeader = false)
+
         Spacer(modifier = Modifier.height(20.dp))
 
         Button(
@@ -152,11 +165,9 @@ fun StartScreenContent(navController: NavHostController) {
                     val nonEmptyUrls = nonEmptyPairs.map { it.second }
                     val nonEmptyColors = nonEmptyPairs.map { (i, _) -> selectedColors.getOrElse(i) { Color.Gray } }
 
-                    // Rensa SharedPreferences
                     val editor = prefs.edit()
                     editor.clear()
 
-                    // Spara nya värden
                     val urlColorMapAsInts = nonEmptyUrls.zip(nonEmptyColors).associate { (url, color) ->
                         url to color.toArgb()
                     }
@@ -164,11 +175,9 @@ fun StartScreenContent(navController: NavHostController) {
                     editor.putString("saved_urls", urlJson)
                     editor.apply()
 
-                    // Anropa ViewModel
                     val urlColorMap = nonEmptyUrls.zip(nonEmptyColors).associate { (url, color) -> url to color }
                     viewModel.fetchEvents(urlColorMap)
 
-                    // Navigera
                     val encodedUrls = nonEmptyUrls.map {
                         URLEncoder.encode(it, StandardCharsets.UTF_8.toString())
                     }
@@ -182,6 +191,7 @@ fun StartScreenContent(navController: NavHostController) {
         }
     }
 }
+
 
 
 

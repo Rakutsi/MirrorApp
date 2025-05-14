@@ -9,17 +9,19 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.core.view.WindowCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.mirrorapp.ui.theme.MirrorAppTheme
-import androidx.compose.ui.Modifier
-import androidx.core.view.WindowCompat
-import androidx.work.*
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,7 +31,7 @@ class MainActivity : ComponentActivity() {
         // Håll skärmen påslagen medan appen körs
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // Säkerställ att window och insetsController inte är null
+        // Fullscreen-läge
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val controller = window?.insetsController
             if (controller != null) {
@@ -50,30 +52,49 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            MirrorAppTheme {
-                val navController = rememberNavController()
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    NavHost(
-                        navController = navController,
-                        startDestination = "start_screen",
-                        modifier = Modifier.padding(innerPadding)
-                    ) {
-                        composable("start_screen") {
-                            StartScreenContent(navController)
-                        }
-                        composable("home_screen/{urls}/{colors}") { backStackEntry ->
-                            val urls = backStackEntry.arguments?.getString("urls") ?: ""
-                            val colors = backStackEntry.arguments?.getString("colors") ?: ""
+            var isDarkMode by rememberSaveable { mutableStateOf(false) }
+            val toggleTheme = { isDarkMode = !isDarkMode }
 
-                            HomeScreen(
-                                navBackStackEntry = backStackEntry,
-                                allUrls = urls,
-                                allColors = colors
-                            )
+            MirrorAppTheme(darkTheme = isDarkMode, dynamicColor = false) {
+                val navController = rememberNavController()
+
+                // Välj bakgrundsfärg baserat på tema
+                val backgroundColor = if (isDarkMode) Color.Black else MaterialTheme.colorScheme.background
+
+                Surface(
+                    modifier = Modifier.fillMaxSize().background(backgroundColor),
+                    color = Color.Transparent // Gör Surface genomskinlig så bakgrunden gäller
+                ) {
+                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                        NavHost(
+                            navController = navController,
+                            startDestination = "start_screen",
+                            modifier = Modifier.padding(innerPadding)
+                        ) {
+                            composable("start_screen") {
+                                StartScreenContent(
+                                    navController = navController,
+                                    isDarkMode = isDarkMode,
+                                    toggleTheme = toggleTheme
+                                )
+                            }
+                            composable("home_screen/{urls}/{colors}") { backStackEntry ->
+                                val urls = backStackEntry.arguments?.getString("urls") ?: ""
+                                val colors = backStackEntry.arguments?.getString("colors") ?: ""
+
+                                HomeScreen(
+                                    navBackStackEntry = backStackEntry,
+                                    allUrls = urls,
+                                    allColors = colors,
+                                    isDarkMode = isDarkMode
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+
+
     }
 }

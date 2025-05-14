@@ -1,47 +1,57 @@
-package com.example.mirrorapp.ui
+package com.example.mirrorapp
 
 import android.util.Log
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mirrorapp.CalendarDay
 import com.example.mirrorapp.StartViewModel
 import java.time.DayOfWeek
-import java.time.format.TextStyle
-import java.util.*
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.style.TextAlign
 import java.time.LocalDate
 import java.time.Month
+import java.time.format.TextStyle
+import java.util.*
+
 
 
 @Composable
-fun CalendarGrid(viewModel: StartViewModel) {
+fun CalendarGrid(viewModel: StartViewModel, isDarkMode: Boolean, showHeader: Boolean = true) {
     val weeks by viewModel.weeklyGrid.collectAsState()
+    val isDarkTheme = isDarkMode
+
+
+    Log.d("CalendarGrid", "isDarkTheme = $isDarkTheme")
 
     Column(modifier = Modifier.padding(8.dp)) {
         // Header: Mån - Tis - Ons ...
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            DayOfWeek.values().forEach { day ->
-                Text(
-                    text = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(4.dp),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
+        if (showHeader) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                DayOfWeek.values().forEach { day ->
+                    Text(
+                        text = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(4.dp),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
 
@@ -55,82 +65,93 @@ fun CalendarGrid(viewModel: StartViewModel) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 week.forEach { day ->
 
-                    // Kontrollera om månaden har ändrats
                     if (currentMonth != day.date.month) {
                         currentMonth = day.date.month
-                        monthDisplayed = false  // Sätt tillbaka till false när vi går in i en ny månad
+                        monthDisplayed = false
                     }
 
-                    // Om det är dagens datum, gör hela raden röd
                     val isToday = day.date == LocalDate.now()
 
                     Box(
                         modifier = Modifier
-                            .weight(1f) // Säkerställer att alla rutor är lika stora
-                            .height(100.dp) // Sätt en exakt höjd på varje ruta
+                            .weight(1f)
+                            .height(100.dp)
                             .padding(2.dp)
                             .border(1.dp, Color.Gray, RoundedCornerShape(4.dp)),
                         contentAlignment = Alignment.TopStart
                     ) {
                         Column(modifier = Modifier.padding(4.dp)) {
-                            // Lägg till både månadsnamnet och datumet på samma rad
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(if (isToday) Color.Black else Color.Transparent), // Gör bara raden röd om det är idag
-                                horizontalArrangement = Arrangement.Start, // Datum och månad till vänster
-                                verticalAlignment = Alignment.CenterVertically // Centrerar vertikalt på raden
+                                    .background(
+                                        when {
+                                            isToday && isDarkTheme -> Color.White
+                                            isToday && !isDarkTheme -> Color.Black
+                                            else -> Color.Transparent
+                                        }
+                                    ),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Lägg till lite extra avstånd mellan datumet och "Idag"-texten
-                                Spacer(modifier = Modifier.width(6.dp)) // Skjuter datumet åt höger
+                                Spacer(modifier = Modifier.width(6.dp))
 
-                                // Visa datumet
+                                // Datum
                                 Text(
                                     text = "${day.date.dayOfMonth}",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isToday) Color.White else Color.Black // Ändra textfärg om det är idag
+                                    color = when {
+                                        isToday && isDarkTheme -> Color.Black
+                                        isToday && !isDarkTheme -> Color.White
+                                        else -> MaterialTheme.colorScheme.onSurface
+                                    }
                                 )
 
-                                // Visa månadsnamnet endast om det inte har visats än för den månaden
+                                // Månadsnamn
                                 if (!monthDisplayed) {
                                     Text(
                                         text = currentMonth!!.getDisplayName(TextStyle.FULL, Locale.getDefault()),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isToday) Color.White else Color.Gray, // Ändra textfärg om det är idag
-                                        modifier = Modifier.padding(start = 4.dp) // Liten avstånd mellan datum och månad
+                                        color = when {
+                                            isToday && isDarkTheme -> Color.Black
+                                            isToday && !isDarkTheme -> Color.White
+                                            else -> Color.Gray
+                                        },
+                                        modifier = Modifier.padding(start = 4.dp)
                                     )
-                                    monthDisplayed = true // Markera att månadsnamnet har visats
+                                    monthDisplayed = true
                                 }
 
-                                // För att hantera "Idag"-texten, som ska vara centrerad på raden:
+                                // "Idag"-etikett
                                 if (isToday) {
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth() // Se till att boxen täcker hela raden
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Text(
                                             text = "Idag",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color.White,
+                                            color = if (isDarkTheme) Color.Black else Color.White,
                                             modifier = Modifier
-                                                .background(Color.Black, RoundedCornerShape(4.dp)) // Bakgrund täcker hela bredden
-                                                .padding(horizontal = 6.dp, vertical = 2.dp) // Padding för att justera utrymme runt texten
-                                                .align(Alignment.Center) // Här använder vi align korrekt på Boxen
+                                                .background(
+                                                    if (isDarkTheme) Color.White else Color.Black,
+                                                    RoundedCornerShape(4.dp)
+                                                )
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                .align(Alignment.Center)
                                         )
                                     }
                                 }
                             }
 
-                            // Event loop - här minskar vi avståndet mellan varje event
+                            // Eventlistan
                             day.events.forEach { event ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(top = 0.dp, bottom = 0.dp) // Ta bort all padding här för att få eventen att ligga närmare varandra
+                                    modifier = Modifier.padding(top = 0.dp, bottom = 0.dp)
                                 ) {
-                                    // Lägg till en liten färgruta för eventets färg
                                     Box(
                                         modifier = Modifier
                                             .size(8.dp)
@@ -139,7 +160,6 @@ fun CalendarGrid(viewModel: StartViewModel) {
 
                                     Spacer(modifier = Modifier.width(4.dp))
 
-                                    // Visa eventets titel
                                     Text(
                                         text = event.title,
                                         fontSize = 10.sp,
@@ -151,25 +171,7 @@ fun CalendarGrid(viewModel: StartViewModel) {
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(2.dp)) // Reducera avstånd mellan veckorna
+            Spacer(modifier = Modifier.height(2.dp))
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
