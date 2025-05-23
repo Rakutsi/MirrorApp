@@ -33,10 +33,11 @@ fun CalendarGrid(viewModel: StartViewModel, isDarkMode: Boolean, showHeader: Boo
 
 
     Log.d("CalendarGrid", "isDarkTheme = $isDarkTheme")
+    if (showHeader) {
 
-    Column(modifier = Modifier.padding(8.dp)) {
-        // Header: Mån - Tis - Ons ...
-        if (showHeader) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            // Header: Mån - Tis - Ons ...
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -53,125 +54,129 @@ fun CalendarGrid(viewModel: StartViewModel, isDarkMode: Boolean, showHeader: Boo
                     )
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
 
-        var currentMonth: Month? = null
-        var monthDisplayed: Boolean = false
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // Veckor
-        weeks.forEach { week ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                week.forEach { day ->
+            var currentMonth: Month? = null
+            var monthDisplayed: Boolean = false
 
-                    if (currentMonth != day.date.month) {
-                        currentMonth = day.date.month
-                        monthDisplayed = false
-                    }
+            // Veckor
+            weeks.forEach { week ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    week.forEach { day ->
 
-                    val isToday = day.date == LocalDate.now()
+                        if (currentMonth != day.date.month) {
+                            currentMonth = day.date.month
+                            monthDisplayed = false
+                        }
 
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(100.dp)
-                            .padding(2.dp)
-                            .border(1.dp, Color.Gray, RoundedCornerShape(4.dp)),
-                        contentAlignment = Alignment.TopStart
-                    ) {
-                        Column(modifier = Modifier.padding(4.dp)) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        when {
-                                            isToday && isDarkTheme -> Color.White
-                                            isToday && !isDarkTheme -> Color.Black
-                                            else -> Color.Transparent
-                                        }
-                                    ),
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Spacer(modifier = Modifier.width(6.dp))
+                        val isToday = day.date == LocalDate.now()
 
-                                // Datum
-                                Text(
-                                    text = "${day.date.dayOfMonth}",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = when {
-                                        isToday && isDarkTheme -> Color.Black
-                                        isToday && !isDarkTheme -> Color.White
-                                        else -> MaterialTheme.colorScheme.onSurface
-                                    }
-                                )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(100.dp)
+                                .padding(2.dp)
+                                .border(1.dp, Color.Gray, RoundedCornerShape(4.dp)),
+                            contentAlignment = Alignment.TopStart
+                        ) {
+                            Column(modifier = Modifier.padding(4.dp)) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            when {
+                                                isToday && isDarkTheme -> Color.White
+                                                isToday && !isDarkTheme -> Color.Black
+                                                else -> Color.Transparent
+                                            }
+                                        ),
+                                    horizontalArrangement = Arrangement.Start,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Spacer(modifier = Modifier.width(6.dp))
 
-                                // Månadsnamn
-                                if (!monthDisplayed) {
+                                    // Datum
                                     Text(
-                                        text = currentMonth!!.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-                                        fontSize = 10.sp,
+                                        text = "${day.date.dayOfMonth}",
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = when {
                                             isToday && isDarkTheme -> Color.Black
                                             isToday && !isDarkTheme -> Color.White
-                                            else -> Color.Gray
-                                        },
-                                        modifier = Modifier.padding(start = 4.dp)
+                                            else -> MaterialTheme.colorScheme.onSurface
+                                        }
                                     )
-                                    monthDisplayed = true
-                                }
 
-                                // "Idag"-etikett
-                                if (isToday) {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
+                                    // Månadsnamn
+                                    if (!monthDisplayed) {
                                         Text(
-                                            text = "Idag",
-                                            fontSize = 12.sp,
+                                            text = currentMonth!!.getDisplayName(
+                                                TextStyle.FULL,
+                                                Locale.getDefault()
+                                            ),
+                                            fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (isDarkTheme) Color.Black else Color.White,
-                                            modifier = Modifier
-                                                .background(
-                                                    if (isDarkTheme) Color.White else Color.Black,
-                                                    RoundedCornerShape(4.dp)
-                                                )
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                .align(Alignment.Center)
+                                            color = when {
+                                                isToday && isDarkTheme -> Color.Black
+                                                isToday && !isDarkTheme -> Color.White
+                                                else -> Color.Gray
+                                            },
+                                            modifier = Modifier.padding(start = 4.dp)
                                         )
+                                        monthDisplayed = true
+                                    }
+
+                                    // "Idag"-etikett
+                                    if (isToday) {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = "Idag",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isDarkTheme) Color.Black else Color.White,
+                                                modifier = Modifier
+                                                    .background(
+                                                        if (isDarkTheme) Color.White else Color.Black,
+                                                        RoundedCornerShape(4.dp)
+                                                    )
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    .align(Alignment.Center)
+                                            )
+                                        }
                                     }
                                 }
-                            }
 
-                            // Eventlistan
-                            day.events.forEach { event ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(top = 0.dp, bottom = 0.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .background(event.color)
-                                    )
+                                // Eventlistan
+                                day.events.forEach { event ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(top = 0.dp, bottom = 0.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .background(event.color)
+                                        )
 
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
 
-                                    Text(
-                                        text = event.title,
-                                        fontSize = 10.sp,
-                                        maxLines = 1
-                                    )
+                                        Text(
+                                            text = event.title,
+                                            fontSize = 10.sp,
+                                            maxLines = 1
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(2.dp))
             }
-            Spacer(modifier = Modifier.height(2.dp))
         }
     }
 }

@@ -40,6 +40,7 @@ fun StartScreenContent(
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("mirror_prefs", Context.MODE_PRIVATE)
 
+
     var urls by remember {
         mutableStateOf(
             run {
@@ -151,9 +152,7 @@ fun StartScreenContent(
             Text(if (isDarkMode) "Byt till ljust läge" else "Byt till mörkt läge")
         }
 
-        CalendarGrid(viewModel = viewModel, isDarkMode = isDarkMode, showHeader = false)
-
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Button(
             onClick = {
@@ -189,6 +188,8 @@ fun StartScreenContent(
         ) {
             Text("Fortsätt")
         }
+
+        CalendarGrid(viewModel = viewModel, isDarkMode = isDarkMode, showHeader = false)
     }
 }
 
