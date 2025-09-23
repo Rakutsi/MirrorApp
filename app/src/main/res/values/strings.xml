@@ -1,3 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MirrorApp</string>
+    <string name="enter_ics_urls_title">Enter one or more ICS URLs</string>
+    <string name="today">Today</string>
+
+    <!-- Content descriptions för ikonknappar (VIKTIGT FÖR TILLGÄNGLIGHET) -->
+    <string name="add_field_description">Add URL field</string>
+    <string name="switch_to_light_mode_description">Switch to light mode</string>
+    <string name="switch_to_dark_mode_description">Switch to dark mode</string>
+    <string name="continue_button_description">Continue to calendar view</string>
+    <string name="remove_url_description">Remove URL</string>
 </resources>
