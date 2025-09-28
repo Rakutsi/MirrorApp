@@ -3,23 +3,35 @@ package com.example.mirrorapp
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.mirrorapp.repository.CalendarEvent // Importera den uppdaterade CalendarEvent
+import com.example.mirrorapp.repository.CalendarEvent
 import com.example.mirrorapp.repository.CalendarRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.*
-import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatter // Behövs för LocalTime.parse med specifikt mönster
 import androidx.compose.ui.graphics.Color
 import java.time.format.DateTimeParseException
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 import java.util.Timer
 import kotlin.concurrent.schedule
-import java.time.temporal.TemporalAdjusters // Behövs för startOfWeek
 
-data class CalendarDay(
-    val date: LocalDate,
-    val events: List<CalendarEvent>
+// --- DATAKLASSER för Layout ---
+data class EventLayoutInfo(
+    val event: CalendarEvent,
+    val trackIndex: Int,
+    val isVisualSegmentStart: Boolean,
+    val isVisualSegmentEnd: Boolean,
+    val totalEventStartDate: LocalDate,
+    val totalEventEndDate: LocalDate
 )
+
+data class DailyLayout(
+    val date: LocalDate,
+    val eventsInTracks: List<EventLayoutInfo?>
+)
+// --- SLUT PÅ DATAKLASSER ---
 
 class StartViewModel : ViewModel() {
 
@@ -29,13 +41,12 @@ class StartViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
-    private val _weeklyGrid = MutableStateFlow<List<List<CalendarDay>>>(emptyList())
-    val weeklyGrid: StateFlow<List<List<CalendarDay>>> = _weeklyGrid
+    private val _weeklyCalendarLayout = MutableStateFlow<List<List<DailyLayout>>>(emptyList())
+    val weeklyCalendarLayout: StateFlow<List<List<DailyLayout>>> = _weeklyCalendarLayout
 
     private var timer: Timer? = null
     private var lastUrlColorMap: Map<String, Color>? = null
 
-    // Hjälpfunktion för säker parsning (kan flyttas om den används på fler ställen)
     private fun safeLocalDateParse(dateString: String?): LocalDate? {
         return if (dateString.isNullOrBlank()) null else try {
             LocalDate.parse(dateString)
@@ -53,15 +64,17 @@ class StartViewModel : ViewModel() {
                 val calendarRepository = CalendarRepository()
                 val allEvents = calendarRepository.fetchEventsFromIcsUrls(urlColorMap)
 
-                // Sortera på startDate, sedan på startTime (hantera null för startTime)
-                val sortedEvents = allEvents.sortedWith(compareBy(
+                // Denna initiala sortering av _events är ok om den används någon annanstans,
+                // men generateWeeklyGridLayout kommer att göra sin egen mer detaljerade sortering.
+                val sortedRawEvents = allEvents.sortedWith(compareBy(
                     { safeLocalDateParse(it.startDate) },
-                    { it.startTime ?: "23:59:59" } // Tom sträng (heldag) eller null tid sist
+                    { it.startTime ?: "23:59:59" }
                 ))
+                _events.value = sortedRawEvents
+                Log.d("StartViewModel", "Raw events sorted and updated, count: ${sortedRawEvents.size}")
 
-                _events.value = sortedEvents
-                Log.d("StartViewModel", "Events sorted and updated, count: ${sortedEvents.size}")
-                generateWeeklyGrid(sortedEvents)
+                generateWeeklyGridLayout(sortedRawEvents)
+
                 lastUrlColorMap = urlColorMap
                 if (timer == null) {
                     startTimer()
@@ -69,7 +82,7 @@ class StartViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("StartViewModel", "Error fetching events", e)
                 _events.value = emptyList()
-                _weeklyGrid.value = emptyList()
+                _weeklyCalendarLayout.value = emptyList()
             } finally {
                 _isLoading.value = false
             }
@@ -93,43 +106,120 @@ class StartViewModel : ViewModel() {
         timer = null
     }
 
-    // parseICalDate är nu ersatt av logiken i CalendarRepository
-    // private fun parseICalDate(line: String): LocalDate? { ... }
+    private data class EventPlacement(
+        val event: CalendarEvent,
+        var trackIndex: Int,
+        val actualStartDate: LocalDate,
+        val actualEndDate: LocalDate
+    )
 
-
-    fun generateWeeklyGrid(eventsToDisplay: List<CalendarEvent>, weeksToShow: Int = 6) {
-        Log.d("StartViewModel", "Generating weekly grid with ${eventsToDisplay.size} total events.")
+    fun generateWeeklyGridLayout(eventsToDisplay: List<CalendarEvent>, weeksToShow: Int = 6) {
+        Log.d("StartViewModel", "Generating weekly grid layout with ${eventsToDisplay.size} total events for $weeksToShow weeks.")
         val now = LocalDate.now()
-        val startOfCurrentWeek = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        val newWeeksGrid = mutableListOf<List<CalendarDay>>()
+        val firstDayOfView = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val lastDayOfView = firstDayOfView.plusWeeks(weeksToShow.toLong() - 1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
 
-        for (weekOffset in 0 until weeksToShow) {
-            val currentIterationWeekStartDate = startOfCurrentWeek.plusWeeks(weekOffset.toLong())
-            val weekDays = (0..6).map { dayOffset ->
-                val currentDateInGridCell = currentIterationWeekStartDate.plusDays(dayOffset.toLong())
-
-                val eventsForThisDay = eventsToDisplay.filter { event ->
-                    val localEventStartDate = safeLocalDateParse(event.startDate)
-                    // Om endDate är null eller tom, använd startDate som fallback (händelsen är bara en dag)
-                    val localEventEndDate = safeLocalDateParse(event.endDate) ?: localEventStartDate
-
-                    if (localEventStartDate != null && localEventEndDate !=null) {
-                        // Händelsen är aktiv på dagen om:
-                        // Dagens datum >= Händelsens startdatum OCH Dagens datum <= Händelsens slutdatum
-                        !currentDateInGridCell.isBefore(localEventStartDate) && !currentDateInGridCell.isAfter(localEventEndDate)
-                    } else {
-                        false // Ogiltigt start/slutdatum för händelsen
-                    }
-                }.sortedBy { it.startTime ?: "23:59:59" } // Sortera igen för säkerhets skull
-
-                CalendarDay(
-                    date = currentDateInGridCell,
-                    events = eventsForThisDay
-                )
+        val relevantPreparedEvents = eventsToDisplay.mapNotNull { event ->
+            val eStart = safeLocalDateParse(event.startDate)
+            val eEnd = safeLocalDateParse(event.endDate ?: event.startDate)
+            if (eStart != null && eEnd != null && !eStart.isAfter(lastDayOfView) && !eEnd.isBefore(firstDayOfView)) {
+                EventPlacement(event, -1, eStart, eEnd)
+            } else {
+                null
             }
-            newWeeksGrid.add(weekDays)
         }
-        _weeklyGrid.value = newWeeksGrid
-        Log.d("StartViewModel", "Weekly grid generated. Weeks: ${newWeeksGrid.size}, Events in grid: ${newWeeksGrid.sumOf { w -> w.sumOf { d -> d.events.size } }}")
+
+        // --- HÄR ÄR DEN UPPDATERADE SORTERINGSLOGIKEN ---
+        val sortedPlacements = relevantPreparedEvents.sortedWith(
+            compareBy<EventPlacement> { it.actualStartDate } // 1. Startdatum (tidigast först)
+                .thenBy { // 2. Starttid (tidigast först, heldagsevent behandlas som tidigast)
+                    if (it.event.isAllDay) {
+                        LocalTime.MIN
+                    } else if (!it.event.startTime.isNullOrEmpty()) {
+                        try {
+                            val timeString = it.event.startTime!!
+                            // Kontrollera om formatet är HH:mm:ss eller HH:mm
+                            if (timeString.count { char -> char == ':' } == 2) { // Kollar antal kolon
+                                LocalTime.parse(timeString, DateTimeFormatter.ISO_LOCAL_TIME) // Försöker parsa HH:mm:ss
+                            } else {
+                                LocalTime.parse(timeString, DateTimeFormatter.ofPattern("HH:mm")) // Försöker parsa HH:mm
+                            }
+                        } catch (e: DateTimeParseException) {
+                            Log.w("StartViewModel", "Could not parse time: ${it.event.startTime} for event ${it.event.title}. Error: ${e.message}")
+                            LocalTime.MAX // Om tiden inte kan parsas, lägg sist
+                        }
+                    } else {
+                        // Om ingen starttid och inte heldag, lägg efter tidsspecificerade event.
+                        LocalTime.MAX
+                    }
+                }
+                .thenBy { it.event.title } // 3. Titel (alfabetiskt, som tie-breaker)
+        )
+        // --- SLUT PÅ UPPDATERAD SORTERINGSLOGIK ---
+
+        val finalEventPlacements = mutableListOf<EventPlacement>()
+        val trackAvailability = mutableMapOf<Int, LocalDate>()
+        var maxTrackForAllWeeks = -1
+
+        for (currentPlacement in sortedPlacements) {
+            var assignedTrack = -1
+            for (trackIndex in 0..(maxTrackForAllWeeks + 1)) {
+                val trackEndsOn = trackAvailability[trackIndex]
+                if (trackEndsOn == null || currentPlacement.actualStartDate.isAfter(trackEndsOn)) {
+                    assignedTrack = trackIndex
+                    break
+                }
+            }
+            if (assignedTrack == -1) {
+                assignedTrack = ++maxTrackForAllWeeks
+            }
+
+            trackAvailability[assignedTrack] = currentPlacement.actualEndDate
+            finalEventPlacements.add(currentPlacement.copy(trackIndex = assignedTrack))
+            if (assignedTrack > maxTrackForAllWeeks) {
+                maxTrackForAllWeeks = assignedTrack
+            }
+        }
+        Log.d("StartViewModel", "Max tracks allocated: $maxTrackForAllWeeks. Total Placements: ${finalEventPlacements.size}")
+
+        val newWeeksLayout = mutableListOf<List<DailyLayout>>()
+        for (weekOffset in 0 until weeksToShow) {
+            val weekDaysLayout = mutableListOf<DailyLayout>()
+            for (dayOfWeekIndex in 0..6) {
+                val dayDate = firstDayOfView.plusWeeks(weekOffset.toLong()).plusDays(dayOfWeekIndex.toLong())
+                if (dayDate.isAfter(lastDayOfView)) break
+
+                val eventsForThisDayInTracks = MutableList<EventLayoutInfo?>(maxTrackForAllWeeks + 1) { null }
+
+                for (placement in finalEventPlacements) {
+                    if (!dayDate.isBefore(placement.actualStartDate) && !dayDate.isAfter(placement.actualEndDate)) {
+                        if (placement.trackIndex >= 0 && placement.trackIndex < eventsForThisDayInTracks.size) {
+                            if (eventsForThisDayInTracks[placement.trackIndex] == null) {
+                                val isVisualStart = dayDate == placement.actualStartDate ||
+                                        (dayDate.dayOfWeek == DayOfWeek.MONDAY && placement.actualStartDate.isBefore(dayDate))
+                                val isVisualEnd = dayDate == placement.actualEndDate ||
+                                        (dayDate.dayOfWeek == DayOfWeek.SUNDAY && placement.actualEndDate.isAfter(dayDate))
+
+                                eventsForThisDayInTracks[placement.trackIndex] = EventLayoutInfo(
+                                    event = placement.event,
+                                    trackIndex = placement.trackIndex,
+                                    isVisualSegmentStart = isVisualStart,
+                                    isVisualSegmentEnd = isVisualEnd,
+                                    totalEventStartDate = placement.actualStartDate,
+                                    totalEventEndDate = placement.actualEndDate
+                                )
+                            }
+                        }
+                    }
+                }
+                weekDaysLayout.add(DailyLayout(date = dayDate, eventsInTracks = eventsForThisDayInTracks))
+            }
+            if (weekDaysLayout.isNotEmpty()) {
+                newWeeksLayout.add(weekDaysLayout)
+            }
+        }
+        _weeklyCalendarLayout.value = newWeeksLayout
+        Log.d("StartViewModel", "Weekly grid layout generated. Weeks: ${newWeeksLayout.size}, Max Tracks: $maxTrackForAllWeeks")
     }
 }
+
